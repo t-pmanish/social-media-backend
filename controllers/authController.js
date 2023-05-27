@@ -113,7 +113,7 @@ const generateAccessToken = async (data) => {
     const access_token = await jwt.sign(
       data,
       process.env.ACCESS_TOKEN_SECRET_KEY,
-      { expiresIn: "1m" }
+      { expiresIn: "15m" }
     ); // jwt.sign(data,secret_key,{expiresIn:xm s})
     return access_token;
   } catch (error) {
