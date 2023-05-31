@@ -235,3 +235,7 @@ module.exports = {
   // deleteMyProfile -> OSM ->
   // getUserPost -> particuler post -> base don userId
 };
+
+
+// findById -> log(N) -> B+ Trees 2^32 -> 32
+// find -> O(N)

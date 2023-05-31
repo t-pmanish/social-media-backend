@@ -2,6 +2,7 @@
 // if we get the access token then we send as user wants otherwise it measn user is not logged in or not valid user -> logout
 // getKepper-> Middleware
 
+const User = require("../models/User");
 const { successMessage, errorMessage } = require("./../utils/responseWrapper");
 const jwt = require("jsonwebtoken");
 
@@ -44,6 +45,18 @@ const requireUserMiddleware = async (req, res, next) => {
     // );
 
     req._id = decoded_access_token._id; // updated / putting (only thing u can get are which u have passed as time of singing to jwt.sign -> payload u have passed)
+
+    
+    // not need to handle
+    // also check that user has been deleted or not ?
+    // because access_token is vaid till 15 min 
+    // this ncheck also needed
+
+    const user = await User.findById(req_id)
+
+    if(!user){
+      return res.send(errorMessage(404,'User Deleted! | User Not Found!'))
+    }
 
     next();
 
