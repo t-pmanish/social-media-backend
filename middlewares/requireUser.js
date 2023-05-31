@@ -20,8 +20,7 @@ const requireUserMiddleware = async (req, res, next) => {
     !req.headers.authorization ||
     !req.headers.authorization.startsWith("Bearer")
   ) {
-    return res
-      .send(errorMessage(401, "Authorization header is required!"));
+    return res.send(errorMessage(401, "Authorization header is required!"));
   }
 
   // authorization headder is available mean check for validity
@@ -51,8 +50,7 @@ const requireUserMiddleware = async (req, res, next) => {
     // now call for next or do rest of your work as ur are allowed
   } catch (error) {
     // invalid or expires
-    return res
-      .send(errorMessage(401, "Invalid Access Key / Token!"));
+    return res.send(errorMessage(401, "Invalid Access Key / Token!"));
   }
 
   // Valid user only want needed resource u can give it

@@ -11,10 +11,10 @@ const signupController = async (req, res) => {
 
   try {
     // getting data
-    const { email, password } = req.body;
+    const { email, password, name } = req.body;
 
     // required field check
-    if (!email || !password) {
+    if (!email || !password || !name) {
       return res.status(400).send(errorMessage(400, "All field are required"));
     }
 
@@ -38,12 +38,13 @@ const signupController = async (req, res) => {
       // here no need to save -> another method to create user & save
       email,
       password: hash_pasaword,
+      name,
     });
 
     // now send resposne
-    return res.send(successMessage(201, { user }));
+    return res.send(successMessage(201, "User created successfully!"));
   } catch (error) {
-    return res.send(errorMessage(400, error));
+    return res.send(errorMessage(500, error));
   }
 };
 
@@ -60,7 +61,8 @@ const loginController = async (req, res) => {
 
     // registred or not -> Note -> Only one user with this email
 
-    const userExists = await User.findOne({ email });
+    // +field_name this thing will be visible -> beacause password is select:true in schema
+    const userExists = await User.findOne({ email }).select("+password");
 
     if (!userExists) {
       return res.status(404).send(errorMessage(404, "User not registered!"));
@@ -102,7 +104,7 @@ const loginController = async (req, res) => {
     return res.send(successMessage(200, { access_token }));
     // store access this token -> then further any subsequesnt reqest we can send this access_token for verification /  validation
   } catch (error) {
-    return res.send(errorMessage(400, error));
+    return res.send(errorMessage(500, error));
   }
 };
 
@@ -195,8 +197,27 @@ const refreshAccessTokenController = async (req, res) => {
   }
 };
 
+// remove refesh token -> from cookies -> from backend also
+// access_token removal from -> local storage -> frontEnd -> from frontEnd
+
+const logoutController = async (req, res) => {
+  try {
+    // remover cookies from
+
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      secure: true,
+    }); // -> jwt -> refresh_token
+
+    return res.send(successMessage(200, "User logged out Successfully!"));
+  } catch (error) {
+    return res.send(errorMessage(500, error.message));
+  }
+};
+
 module.exports = {
   loginController,
   signupController,
   refreshAccessTokenController,
+  logoutController,
 };

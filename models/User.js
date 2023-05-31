@@ -11,9 +11,11 @@ const userSchema = mongoose.Schema(
     password: {
       type: String,
       required: true,
+      select:false // findById me we did'nt get password
     },
     name: {
       type: String,
+      required:true,
     },
     avatar: {
       publicId: String,

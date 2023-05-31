@@ -11,6 +11,7 @@ const cors = require("cors");
 // routers imports
 const authRouter = require("./routes/authRouter");
 const postRouter = require("./routes/postRouter");
+const userRouter = require('./routes/userRouter')
 
 // middlewares
 app.use(express.json()); // pass request body
@@ -32,6 +33,7 @@ app.use((req, res, next) => {
 // routers
 app.use("/auth", authRouter);
 app.use("/posts", postRouter);
+app.use("/user", userRouter);
 
 // server running check
 app.get("/", (req, res) => {
