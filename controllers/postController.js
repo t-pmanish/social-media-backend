@@ -1,6 +1,8 @@
 const Post = require("../models/Post");
 const User = require("../models/User");
+const { mapPostOutput } = require("../utils/utils");
 const { successMessage, errorMessage } = require("./../utils/responseWrapper");
+const cloudinary = require("cloudinary").v2;
 
 // note on each api call we got id as require user is middleware for us which gives user id
 
@@ -8,28 +10,25 @@ const getAllPostsController = async (req, res) => {
   console.log("getAllPostController called!");
 
   try {
-
     // console.log("user comes after middleware confirmation is - ", req._id);
 
-     return res.send(successMessage(200, {posts:await Post.find()}));
-    
+    return res.send(successMessage(200, { posts: await Post.find() }));
   } catch (error) {
-     return res.send(errorMessage(500,error.message))
+    return res.send(errorMessage(500, error.message));
   }
-  
 };
 
 const createPostController = async (req, res) => {
   console.log("createPostController Called");
   try {
     // letter we also get images url from third party so that we have to save in our body
-    const { caption } = req.body;
+    const { caption, postImg } = req.body;
     const userId = req._id; // middleware giving us this for logged in userid
 
     const user = await User.findById(userId); // to save this postId to this posts array
 
-    if (!caption) {
-      res.send(errorMessage(400, "Caption is required"));
+    if (!caption || !postImg) {
+      res.send(errorMessage(400, "Caption or post image is required"));
     }
 
     // creating a post -> automatic saved to mongoDB
@@ -37,6 +36,20 @@ const createPostController = async (req, res) => {
       owner: userId,
       caption,
     });
+
+    if (postImg) {
+      const cloudImg = await cloudinary.uploader.upload(postImg, {
+        folder: "socialMediaPostImages",
+        api_key: process.env.CLOUD_API_KEY,
+      });
+
+      post.image = {
+        publicId: cloudImg.public_id,
+        url: cloudImg.secure_url,
+      };
+
+      await post.save();
+    }
 
     // now saving this post to user who created
     // in any user there is field of posts : mean has record of his posts
@@ -70,7 +83,7 @@ const likeAndUnlikePostController = async (req, res) => {
 
     const currentUserId = req._id; // from middleware -> loggedIn user userId -> currentUserId
 
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate("owner");
 
     if (!post) {
       res.send(errorMessage(401, "Post not found"));
@@ -89,7 +102,11 @@ const likeAndUnlikePostController = async (req, res) => {
 
       await post.save();
 
-      return res.send(successMessage(200, "Post Unliked !"));
+      // return res.send(successMessage(200, "Post Unliked !"));
+
+      return res.send(
+        successMessage(200, { post: mapPostOutput(post, req._id) })
+      );
     } else {
       // like this post now
       // add userId to this post like array
@@ -98,7 +115,11 @@ const likeAndUnlikePostController = async (req, res) => {
 
       await post.save();
 
-      return res.send(successMessage(200, "Post liked !"));
+      // return res.send(successMessage(200, "Post liked !"));
+
+      return res.send(
+        successMessage(200, { post: mapPostOutput(post, req._id) })
+      );
     }
   } catch (error) {
     return res.send(errorMessage(500, error.message));
@@ -188,7 +209,6 @@ module.exports = {
   likeAndUnlikePostController,
   updatePostCotroller,
   deletePostController,
-  
 };
 
-// 
+//

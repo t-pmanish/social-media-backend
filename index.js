@@ -7,13 +7,24 @@ const morgan = require("morgan");
 const { dataBaseConnection } = require("./dataBaseConnection");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const cloudinary = require("cloudinary").v2;
+
+// configure cloudinary
+// Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.CLOUD_API_KEY,
+  api_secret: process.env.CLOUD_API_SECRET,
+});
 
 // routers imports
 const authRouter = require("./routes/authRouter");
 const postRouter = require("./routes/postRouter");
-const userRouter = require('./routes/userRouter')
+const userRouter = require("./routes/userRouter");
 
 // middlewares
+//Set Request Size Limit
+app.use(express.json({ limit: "50mb" }));
 app.use(express.json()); // pass request body
 app.use(morgan("common")); // print common thing of any api call - > after controller it running
 app.use(cookieParser()); // option also can be provided
@@ -23,6 +34,8 @@ app.use(
     origin: "http://localhost:3000",
   })
 ); // allowed this frontEnd url -> also set arr  -> oring :[url1,url2]
+
+
 
 // global middleware to print url & methods called
 app.use((req, res, next) => {

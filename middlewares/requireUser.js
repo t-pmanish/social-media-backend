@@ -30,6 +30,8 @@ const requireUserMiddleware = async (req, res, next) => {
 
   // validate access token
 
+  
+
   try {
     const decoded_access_token = jwt.verify(
       access_token,
@@ -46,13 +48,13 @@ const requireUserMiddleware = async (req, res, next) => {
 
     req._id = decoded_access_token._id; // updated / putting (only thing u can get are which u have passed as time of singing to jwt.sign -> payload u have passed)
 
-    
+   
     // not need to handle
     // also check that user has been deleted or not ?
     // because access_token is vaid till 15 min 
     // this ncheck also needed
 
-    const user = await User.findById(req_id)
+    const user = await User.findById(req._id)
 
     if(!user){
       return res.send(errorMessage(404,'User Deleted! | User Not Found!'))

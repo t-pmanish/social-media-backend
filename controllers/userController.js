@@ -1,6 +1,9 @@
 const Post = require("../models/Post");
 const User = require("../models/User");
+const cloudinary = require("cloudinary").v2;
+
 const { successMessage, errorMessage } = require("../utils/responseWrapper");
+const { mapPostOutput } = require("../utils/utils");
 
 const followAndUnfollowUserController = async (req, res) => {
   console.log("FollowUserCOntr");
@@ -46,7 +49,7 @@ const followAndUnfollowUserController = async (req, res) => {
       await currentUser.save();
       await userToFollow.save();
 
-      return res.send(successMessage(200, "User UnFollowed!"));
+      return res.send(successMessage(200, {user:userToFollow}));
     } else {
       // current user wants to follow this userToFollow
 
@@ -56,7 +59,7 @@ const followAndUnfollowUserController = async (req, res) => {
       await currentUser.save();
       await userToFollow.save();
 
-      return res.send(successMessage(200, "User Followed!"));
+      return res.send(successMessage(200, {user:userToFollow}));
     }
   } catch (error) {
     return res.send(successMessage(500, error.message));
@@ -106,7 +109,7 @@ const getMyPostController = async (req, res) => {
 
     // take all post and return it
     // also populate users inside it who liked this post
-    const posts = await Post.find({ owner: userId }).populate('likes')
+    const posts = await Post.find({ owner: userId }).populate("likes");
 
     return res.send(successMessage(200, { posts }));
   } catch (error) {
@@ -132,7 +135,7 @@ const getUserPostsController = async (req, res) => {
     }
 
     // all posts of user
-    const posts = await Post.find({ owner: userId }).populate('likes')
+    const posts = await Post.find({ owner: userId }).populate("likes");
 
     return res.send(successMessage(200, { posts }));
   } catch (error) {
@@ -186,11 +189,8 @@ const deleteUserProfileController = async (req, res) => {
       { $pull: { followers: userId } }
     );
 
-
-
     // (4) also delete all posts of this user
     await Post.deleteMany({ owner: userId });
-
 
     // (5) also remove this user from posts like array for them user like their post
 
@@ -201,8 +201,6 @@ const deleteUserProfileController = async (req, res) => {
     //   await post.save();
     // });
     await Post.updateMany({ likes: userId }, { $pull: { likes: userId } });
-
-
 
     // 6) also remove user jwt (refresh token)m from cookies
     // remover cookies from
@@ -215,14 +213,131 @@ const deleteUserProfileController = async (req, res) => {
     // 7) and from frontEnd logout user and send to sginup user
 
     return res.send(successMessage(200, "User Profile Deleted Successfully!"));
+  } catch (error) {
+    return res.send(errorMessage(500, error.message));
+  }
+};
 
+const getMyProfileController = async (req, res) => {
+  try {
+    const userId = req._id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.send(errorMessage(404, "User Not Found!"));
+    }
+
+    return res.send(successMessage(200, { user }));
+  } catch (error) {
+    return res.send(errorMessage(500, error.message));
+  }
+};
+
+const updateMyProfileController = async (req, res) => {
+  console.log("updateMyProfileController Called");
+
+  try {
+    const { name, bio, userImg } = req.body; // uerImg -> base64 encoded
+
+    const user = await User.findById(req._id);
+    if (!user) {
+      return res.send(errorMessage(404, "User Not Found!"));
+    }
+
+    if (name) {
+      user.name = name;
+    }
+    if (bio) {
+      user.bio = bio;
+    }
+
+    if (userImg) {
+      // base64 -> images
+      // cloudinary -> images can be uplodeded
+
+      const cloudImg = await cloudinary.uploader.upload(userImg, {
+        folder: "socialMediaUserProfileImage",
+        api_key: process.env.CLOUD_API_KEY,
+      });
+
+      // console.log(cloudImg);
+
+      user.avatar = {
+        publicId: cloudImg.public_id,
+        url: cloudImg.secure_url,
+      };
+    }
+
+    await user.save();
+
+    return res.send(successMessage(200, { user }));
+  } catch (error) {
+    return res.send(errorMessage(500, error.message));
+  }
+};
+
+const getUserProfileController = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const user = await User.findById(userId).populate({
+      path: "posts",
+      populate: {
+        path: "owner",
+      },
+    });
+
+    if (!user) {
+      return res.send(errorMessage(404, "User Not Found!"));
+    }
+
+    const fullPosts = user.posts;
+
+    const posts = fullPosts
+      .map((item) => mapPostOutput(item, req._id))
+      .reverse();
+
+    return res.send(successMessage(200, { ...user._doc, posts }));
   } catch (error) {
     return res.send(errorMessage(500, error.message));
   }
 };
 
 
+const  getFeedDataController = async (req, res) => {
+  try {
+    const currentUserId = req._id;
 
+    const currentUser = await User.findById(currentUserId).populate('followings');
+
+    // going to all post check if ownerId !=  followingsId of currentUserId's
+    // mean of owner( creator id) is in the list of  current user followings == post of current user Followings
+
+    const fullPosts = await Post.find({
+      owner: {
+        $in: currentUser.followings,
+      },
+    }).populate('owner');
+
+    const posts = fullPosts.map(item => mapPostOutput(item,req._id)).reverse()
+
+    const followingsId = currentUser.followings.map(item => item._id)
+
+    followingsId.push(req._id)
+    
+    const suggestions = await User.find({
+      _id:{
+        $nin:followingsId
+      }
+    })
+
+    return res.send(successMessage(200 , {...currentUser._doc ,suggestions , posts }));
+    
+  } catch (error) {
+    return res.send(successMessage(500, error.message));
+  }
+};
 
 module.exports = {
   followAndUnfollowUserController,
@@ -230,12 +345,15 @@ module.exports = {
   getMyPostController,
   getUserPostsController,
   deleteUserProfileController,
+  getMyProfileController,
+  updateMyProfileController,
+  getUserProfileController,
+  getFeedDataController
 
   // getMyPost -> current user post
   // deleteMyProfile -> OSM ->
   // getUserPost -> particuler post -> base don userId
 };
-
 
 // findById -> log(N) -> B+ Trees 2^32 -> 32
 // find -> O(N)
